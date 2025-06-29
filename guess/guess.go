@@ -1,29 +1,37 @@
-package logics
+package guess
 
 import (
 	"bufio"
 	"crypto/rand"
+	"flag"
 	"fmt"
 	"math/big"
 	"os"
 	"strings"
 )
 
-const (
+var (
 	easyLives   = 10
 	mediumLives = 5
 	hardLives   = 3
+	customLives int
 )
 
-func Init() {
-	fmt.Println("Welcome to the Number Guessing Game!")
-	fmt.Println("I'm thinking of a number between 1 and 100.")
-
-	play()
-	fmt.Println("Thanks for playing!")
+func SetUp(easy, medium, hard int){
+	easyLives = easy
+	mediumLives = medium
+	hardLives = hard
 }
 
-// Menampilkan pilihan mode dan mengembalikan jumlah nyawa
+func setCustom(custom int){
+	customLives = custom
+}
+
+func welcome() {
+	fmt.Println("Welcome to the Number Guessing Game!")
+	fmt.Println("I'm thinking of a number between 1 and 100.")
+}
+
 func selectMode() int {
 	fmt.Println("\nPlease choose game difficulty level:")
 	fmt.Println("1. Easy (10 lives)")
@@ -47,7 +55,6 @@ func selectMode() int {
 	}
 }
 
-// Menghasilkan angka acak dari 1 hingga 100
 func randomize() int {
 	random, err := rand.Int(rand.Reader, big.NewInt(100))
 	if err != nil {
@@ -57,7 +64,6 @@ func randomize() int {
 	return int(random.Int64()) + 1
 }
 
-// Meminta input angka dari user
 func getGuess() int {
 	var guess int
 	fmt.Print("Enter your guess: ")
@@ -65,7 +71,6 @@ func getGuess() int {
 	return guess
 }
 
-// Memberikan petunjuk berdasarkan tebakan user
 func giveClue(guess, target int) {
 	if guess < target {
 		fmt.Println("Too low.")
@@ -76,10 +81,14 @@ func giveClue(guess, target int) {
 	}
 }
 
-// Memainkan satu ronde permainan
-func play() {
+func run(isCustom bool) {
 	target := randomize()
-	lives := selectMode()
+	var lives int
+	if isCustom{
+		lives = customLives
+	} else {
+		lives = selectMode()
+	}
 
 	for attempts := 1; attempts <= lives; attempts++ {
 		guess := getGuess()
@@ -94,11 +103,33 @@ func play() {
 	}
 }
 
-// Menanyakan apakah user ingin bermain lagi
+func Play(){
+	isCustomMode := false
+
+	customLives := flag.Int("custom",-1, "Set Custom lives / playground modes") 
+	flag.Parse()
+
+	if *customLives != -1 {
+		isCustomMode = true
+		setCustom(*customLives)
+		welcome()
+	}else {
+		welcome()
+	}
+
+	for {
+		run(isCustomMode)
+		if !askReplay(){
+			fmt.Println("Thanks for playing")
+			break
+		}
+	}
+}
+
 func askReplay() bool {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("Play again? [y/n]: ")
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSpace(strings.ToLower(input))
-	return input == "x"
+	return input == "y"
 }

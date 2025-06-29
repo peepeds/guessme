@@ -1,7 +1,8 @@
 package main
 
-import "github.com/peepeds/guessme/logics"
+import "github.com/peepeds/guessme/guess"
 
 func main(){
-	logics.Init()
+	guess.SetUp(10,8,5)
+	guess.Play()
 }
