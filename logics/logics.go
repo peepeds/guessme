@@ -1,99 +1,104 @@
 package logics
 
 import (
+	"bufio"
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"os"
+	"strings"
 )
 
-func Init(){
+const (
+	easyLives   = 10
+	mediumLives = 5
+	hardLives   = 3
+)
+
+func Init() {
 	fmt.Println("Welcome to the Number Guessing Game!")
 	fmt.Println("I'm thinking of a number between 1 and 100.")
 
 	play()
+	fmt.Println("Thanks for playing!")
 }
 
-func modes()int {
-	fmt.Println("\nPlease Choose game difficulty level")
-	fmt.Println("1. Easy (10 choices)")
-	fmt.Println("2. Medium (5 choices)")
-	fmt.Println("3. Hard (3 choices)")
+// Menampilkan pilihan mode dan mengembalikan jumlah nyawa
+func selectMode() int {
+	fmt.Println("\nPlease choose game difficulty level:")
+	fmt.Println("1. Easy (10 lives)")
+	fmt.Println("2. Medium (5 lives)")
+	fmt.Println("3. Hard (3 lives)")
 	fmt.Print(">> ")
+
 	var mode int
 	fmt.Scan(&mode)
-	return mode
+
+	switch mode {
+	case 1:
+		return easyLives
+	case 2:
+		return mediumLives
+	case 3:
+		return hardLives
+	default:
+		fmt.Println("Invalid mode. Defaulting to Easy.")
+		return easyLives
+	}
 }
 
-func randomize() int64 {
-	random, err := rand.Int(rand.Reader, big.NewInt(100)) // range: 0 - 99
+// Menghasilkan angka acak dari 1 hingga 100
+func randomize() int {
+	random, err := rand.Int(rand.Reader, big.NewInt(100))
 	if err != nil {
 		fmt.Println("Error generating random number:", err)
-		return 0
+		return 1
 	}
-	return random.Int64() + 1
+	return int(random.Int64()) + 1
 }
 
-func choices() int{
-	var choice int
-	fmt.Print("\nEnter your choices : ")
-	fmt.Scan(&choice)
-	return choice
-} 
+// Meminta input angka dari user
+func getGuess() int {
+	var guess int
+	fmt.Print("Enter your guess: ")
+	fmt.Scan(&guess)
+	return guess
+}
 
+// Memberikan petunjuk berdasarkan tebakan user
+func giveClue(guess, target int) {
+	if guess < target {
+		fmt.Println("Too low.")
+	} else if guess > target {
+		fmt.Println("Too high.")
+	} else {
+		fmt.Println("Correct!")
+	}
+}
 
-func play() (result, tries int) {
-	var lives int 
-	random := int(randomize())
-	running := true
-	mode := modes()
+// Memainkan satu ronde permainan
+func play() {
+	target := randomize()
+	lives := selectMode()
 
-	tries = 0 
-	result = 0
-	switch{
-		case mode == 1 :
-			lives = 10
-		case mode == 2 : 
-			lives = 5
-		case mode == 3 : 
-			lives = 3
-	} 
-	for running {
-		choise := choices()
-		clues(choise, random)
-		tries++
+	for attempts := 1; attempts <= lives; attempts++ {
+		guess := getGuess()
+		giveClue(guess, target)
 
-		if	tries == lives {
-			running = false
+		if guess == target {
+			fmt.Printf("🎉 You won in %d tries!\n", attempts)
+			return
+		} else if attempts == lives {
+			fmt.Printf("💥 You lost. The number was %d.\n", target)
 		}
-
-		if choise == random {
-			result = 1
-			running = false
-		} 
-		
-	}
-
-	fmt.Println(result,tries)
-	results(result,tries)
-	return result, tries
-}
-
-func clues(choice, target int){
-	if choice < target {
-		fmt.Println("To Low")
-	} else if choice > target {
-		fmt.Println("To Big")
-	} else {
-		fmt.Println("Win!")
 	}
 }
 
-func results(result, tries int){
-	if result == 1 {
-		fmt.Printf("Winning with : %d tries\n",tries)
-	} else {
-		fmt.Printf("Better try again :v\n")
-	}
-	
+// Menanyakan apakah user ingin bermain lagi
+func askReplay() bool {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Play again? [y/n]: ")
+	input, _ := reader.ReadString('\n')
+	input = strings.TrimSpace(strings.ToLower(input))
+	return input == "x"
 }
-
