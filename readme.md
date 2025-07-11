@@ -10,6 +10,30 @@ Guess the random number with multiple difficulty modes or set your own custom mo
 - 🧠 Default difficulty modes: Easy, Medium, Hard  
 - 🧪 CLI-based flag inputs  
 
+## 🧐 Supported Modes
+
+### 🔹 `normal`
+- The player will be prompted to choose a difficulty level (easy, medium, hard).
+- The number of lives is determined based on the selected difficulty.
+- Example usage:
+  ```go
+  guess.Play("normal")
+  ```
+
+### 🔹 `custom`
+- Requires an **additional parameter** for the number of lives.
+- Players can manually set how many lives they want.
+- Example usage:
+  ```go
+  guess.Play("custom", 5)
+  ```
+### 🔹 `challenge`
+- Play without any lives.
+- Example usage:
+  ```go
+  guess.Play("challenge")
+  ```
+
 ## 🛠️ Prerequisites
 
 - **Go v1.24** or higher  
@@ -46,6 +70,7 @@ func main() {
 
     // Start the game
     guess.Play()
+
 }
 
 ```

@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/big"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -111,33 +112,69 @@ func run(specialMode string) {
 	}
 }
 
-func Play(){
-	modes := []string{"normal","custom","challenge"}
-	mode := modes[0]
+func contains(slice []string, val string) bool {
+    for _, item := range slice {
+        if item == val {
+            return true
+        }
+    }
+    return false
+}
 
-	customLives := flag.Int("custom",-1, "Set Custom lives / playground modes") 
-	challengeMode := flag.Bool("challenge",false,"Challenge yourself to play with minimum tries")
+func Play(selectedMode ...interface{}) {
+	modes := []string{"normal", "custom", "challenge"}
+	mode := "normal"
 
+	// ========== 1. Handle CLI Flags ==========
+	customLivesFlag := flag.Int("custom", -1, "Set custom lives for custom mode")
+	challengeModeFlag := flag.Bool("challenge", false, "Enable challenge mode")
 	flag.Parse()
 
-	if *customLives != -1 {
-		mode = modes[1]
-		setCustom(*customLives)
-		welcome()
+	// ========== 2. Handle Variadic Args ==========
+	if len(selectedMode) >= 1 {
+		if m, ok := selectedMode[0].(string); ok && contains(modes, m) {
+			mode = m
+		}
 	}
 
-	if *challengeMode {
-		mode = modes[2]
-		welcome()
+	// If mode is "custom", read the second arg
+	if mode == "custom" && len(selectedMode) >= 2 {
+		switch v := selectedMode[1].(type) {
+		case int:
+			setCustom(v)
+		case string:
+			if val, err := strconv.Atoi(v); err == nil {
+				setCustom(val)
+			} else {
+				setCustom(easyLives)
+				fmt.Println("Invalid customLives (string), using default:", easyLives)
+			}
+		default:
+			setCustom(easyLives)
+			fmt.Println("Unsupported customLives type, using default:", easyLives)
+		}
+	} else if mode == "custom" {
+		// no value passed
+		setCustom(easyLives)
+		fmt.Printf("Custom mode requires number of lives, using default: %d\n", easyLives)
 	}
 
-	if mode == modes[0] {
-		welcome()
+	// ========== 3. Override Mode via Flags ==========
+	if *customLivesFlag != -1 {
+		mode = "custom"
+		setCustom(*customLivesFlag)
 	}
+
+	if *challengeModeFlag {
+		mode = "challenge"
+	}
+
+	// ========== 4. Start Game ==========
+	welcome()
 
 	for {
 		run(mode)
-		if !askReplay(){
+		if !askReplay() {
 			fmt.Println("Thanks for playing")
 			break
 		}
