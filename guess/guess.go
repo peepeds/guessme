@@ -5,15 +5,19 @@ import (
 	"crypto/rand"
 	"flag"
 	"fmt"
+	"math"
 	"math/big"
 	"os"
 	"strings"
 )
 
 var (
+	// normal mode
 	easyLives   = 10
 	mediumLives = 5
 	hardLives   = 3
+
+	// custom mode
 	customLives int
 )
 
@@ -81,11 +85,15 @@ func giveClue(guess, target int) {
 	}
 }
 
-func run(isCustom bool) {
+func run(specialMode string) {
 	target := randomize()
+
 	var lives int
-	if isCustom{
+
+	if specialMode == "custom"{
 		lives = customLives
+	} else if specialMode == "challenge"{
+		lives = math.MaxInt
 	} else {
 		lives = selectMode()
 	}
@@ -104,21 +112,31 @@ func run(isCustom bool) {
 }
 
 func Play(){
-	isCustomMode := false
+	modes := []string{"normal","custom","challenge"}
+	mode := modes[0]
 
 	customLives := flag.Int("custom",-1, "Set Custom lives / playground modes") 
+	challengeMode := flag.Bool("challenge",false,"Challenge yourself to play with minimum tries")
+
 	flag.Parse()
 
 	if *customLives != -1 {
-		isCustomMode = true
+		mode = modes[1]
 		setCustom(*customLives)
 		welcome()
-	}else {
+	}
+
+	if *challengeMode {
+		mode = modes[2]
+		welcome()
+	}
+
+	if mode == modes[0] {
 		welcome()
 	}
 
 	for {
-		run(isCustomMode)
+		run(mode)
 		if !askReplay(){
 			fmt.Println("Thanks for playing")
 			break
