@@ -13,32 +13,108 @@ import (
 )
 
 var (
-	// normal mode
+	// CLI flags
+	CustomLivesFlag   = flag.Int("custom", -1, "Set custom lives for custom mode")
+	ChallengeModeFlag = flag.Bool("challenge", false, "Enable challenge mode")
+
+	// Default lives per mode
 	easyLives   = 10
 	mediumLives = 5
 	hardLives   = 3
-
-	// custom mode
 	customLives int
+
+	// Modes
+	listModes = []string{"normal", "custom", "challenge"}
+
+	// flag state tracker
+	flagParsed = false
 )
 
-func SetUp(easy, medium, hard int){
+func ensureFlagParsed() {
+	if !flagParsed {
+		flag.Parse()
+		flagParsed = true
+	}
+}
+
+// === Setup lives ===
+func SetUp(easy, medium, hard int) {
 	easyLives = easy
 	mediumLives = medium
 	hardLives = hard
 }
 
-func setCustom(custom int){
-	customLives = custom
+// === Game setup ===
+
+func setLives(selectedMode string) int {
+	switch selectedMode {
+	case "custom":
+		if customLives == 0 {
+			return easyLives
+		}
+		return customLives
+	case "challenge":
+		return math.MaxInt
+	default:
+		return selectMode()
+	}
+}
+
+func validatesMode(slice []string, val string) bool {
+	for _, item := range slice {
+		if item == val {
+			return true
+		}
+	}
+	return false
+}
+
+func setMode(modes ...interface{}) string {
+	ensureFlagParsed()
+
+	var mode string
+
+	if len(modes) == 0 {
+		mode = "normal"
+	} else if m, ok := modes[0].(string); ok && validatesMode(listModes, m) {
+		mode = m
+	}
+
+	if mode == "custom" && len(modes) >= 2 {
+		switch v := modes[1].(type) {
+		case int:
+			customLives = v
+		case string:
+			if val, err := strconv.Atoi(v); err == nil {
+				customLives = val
+			} else {
+				customLives = easyLives
+			}
+		default:
+			customLives = easyLives
+		}
+	} else if mode == "custom" && len(modes) == 1 { // if user not defined their lives
+		customLives = easyLives
+	}
+
+	if *CustomLivesFlag != -1 {
+		mode = "custom"
+		customLives = *CustomLivesFlag
+	}
+	if *ChallengeModeFlag {
+		mode = "challenge"
+	}
+
+	return mode
 }
 
 func welcome() {
-	fmt.Println("Welcome to the Number Guessing Game!")
+	fmt.Println("🎮 Welcome to the Number Guessing Game!")
 	fmt.Println("I'm thinking of a number between 1 and 100.")
 }
 
 func selectMode() int {
-	fmt.Println("\nPlease choose game difficulty level:")
+	fmt.Println("\nChoose difficulty:")
 	fmt.Println("1. Easy (10 lives)")
 	fmt.Println("2. Medium (5 lives)")
 	fmt.Println("3. Hard (3 lives)")
@@ -55,25 +131,33 @@ func selectMode() int {
 	case 3:
 		return hardLives
 	default:
-		fmt.Println("Invalid mode. Defaulting to Easy.")
+		fmt.Println("Invalid input. Defaulting to Easy.")
 		return easyLives
 	}
 }
 
 func randomize() int {
-	random, err := rand.Int(rand.Reader, big.NewInt(100))
+	n, err := rand.Int(rand.Reader, big.NewInt(100))
 	if err != nil {
-		fmt.Println("Error generating random number:", err)
 		return 1
 	}
-	return int(random.Int64()) + 1
+	return int(n.Int64()) + 1
 }
 
+// === Game Loop ===
+
 func getGuess() int {
-	var guess int
-	fmt.Print("Enter your guess: ")
-	fmt.Scan(&guess)
-	return guess
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Print("Enter your guess: ")
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(input)
+
+		if guess, err := strconv.Atoi(input); err == nil {
+			return guess
+		}
+		fmt.Println("❌ Invalid input. Please enter a number.")
+	}
 }
 
 func giveClue(guess, target int) {
@@ -86,99 +170,25 @@ func giveClue(guess, target int) {
 	}
 }
 
-func run(specialMode string) {
-	target := randomize()
-
-	var lives int
-
-	if specialMode == "custom"{
-		lives = customLives
-	} else if specialMode == "challenge"{
-		lives = math.MaxInt
-	} else {
-		lives = selectMode()
-	}
-
+func startGuessingRound(target int, lives int) int {
 	for attempts := 1; attempts <= lives; attempts++ {
 		guess := getGuess()
 		giveClue(guess, target)
 
 		if guess == target {
 			fmt.Printf("🎉 You won in %d tries!\n", attempts)
-			return
+			return attempts
 		} else if attempts == lives {
 			fmt.Printf("💥 You lost. The number was %d.\n", target)
 		}
 	}
+	return -1
 }
 
-func contains(slice []string, val string) bool {
-    for _, item := range slice {
-        if item == val {
-            return true
-        }
-    }
-    return false
-}
-
-func Play(selectedMode ...interface{}) {
-	modes := []string{"normal", "custom", "challenge"}
-	mode := "normal"
-
-	// ========== 1. Handle CLI Flags ==========
-	customLivesFlag := flag.Int("custom", -1, "Set custom lives for custom mode")
-	challengeModeFlag := flag.Bool("challenge", false, "Enable challenge mode")
-	flag.Parse()
-
-	// ========== 2. Handle Variadic Args ==========
-	if len(selectedMode) >= 1 {
-		if m, ok := selectedMode[0].(string); ok && contains(modes, m) {
-			mode = m
-		}
-	}
-
-	// If mode is "custom", read the second arg
-	if mode == "custom" && len(selectedMode) >= 2 {
-		switch v := selectedMode[1].(type) {
-		case int:
-			setCustom(v)
-		case string:
-			if val, err := strconv.Atoi(v); err == nil {
-				setCustom(val)
-			} else {
-				setCustom(easyLives)
-				fmt.Println("Invalid customLives (string), using default:", easyLives)
-			}
-		default:
-			setCustom(easyLives)
-			fmt.Println("Unsupported customLives type, using default:", easyLives)
-		}
-	} else if mode == "custom" {
-		// no value passed
-		setCustom(easyLives)
-		fmt.Printf("Custom mode requires number of lives, using default: %d\n", easyLives)
-	}
-
-	// ========== 3. Override Mode via Flags ==========
-	if *customLivesFlag != -1 {
-		mode = "custom"
-		setCustom(*customLivesFlag)
-	}
-
-	if *challengeModeFlag {
-		mode = "challenge"
-	}
-
-	// ========== 4. Start Game ==========
-	welcome()
-
-	for {
-		run(mode)
-		if !askReplay() {
-			fmt.Println("Thanks for playing")
-			break
-		}
-	}
+func run(mode string) int {
+	target := randomize()
+	lives := setLives(mode)
+	return startGuessingRound(target, lives)
 }
 
 func askReplay() bool {
@@ -187,4 +197,19 @@ func askReplay() bool {
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSpace(strings.ToLower(input))
 	return input == "y"
+}
+
+// === Entrypoint ===
+
+func Play(modes ...interface{}) {
+	mode := setMode(modes...)
+	welcome()
+
+	for {
+		run(mode)
+		if !askReplay() {
+			fmt.Println("👋 Thanks for playing!")
+			break
+		}
+	}
 }
